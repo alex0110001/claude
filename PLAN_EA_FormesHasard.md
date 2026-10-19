@@ -37,3 +37,9 @@ Pattern T (pattern_T.html) : 17 M1 consécutives, angle = atan(pente régression
 - TP : RANGE et RETOURNEMENT = 0.50 $ ; TENDANCE = 4.00 $ (inputs).
 - InpMaxPositions (1 = une seule, >1 = multi). SL ATR (input), magic, anti-burst new-bar.
 - Hypothèses à confirmer : "taille" = high-low ; sens de la limite = dans le sens de la tendance (retour de tendance après contre-bougies) ; pause = blocage des entrées pendant T.
+
+## Révision 3 (corrige rev 2)
+- Sens : ON VEND dans le sens de la tendance. Trend down + N bougies haussières (>1 $) → SELL LIMIT. Trend up + N baissières → BUY LIMIT.
+- Timing : la limite est posée à T-3 s avant la fin de la N-ième bougie (bougie encore en formation, évite le gap d'open). Les N-1 précédentes sont closes ; la N-ième doit déjà être dans le bon sens et > InpTailleMin à ce moment. Déclenchement via OnTimer(1 s), InpSecAvantFin = 3.
+- Prix de la limite : au-dessus du bid (SELL) / sous l'ask (BUY) par offset input ; expiration = fin de la barre.
+- TP : 4 $ TENDANCE ; 0.50 $ RANGE/RETOURNEMENT (inchangé) — tous en inputs.
