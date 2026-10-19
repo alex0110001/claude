@@ -6,10 +6,11 @@ bool Rafraichir()
    g_forme = -1;
    if(!Charger()) return false;
    if(!Glissante()) return false;
+   CalculerAlignement();
    g_pause = InpPauseT && DetecterT();
    Comment("FormesHasardEA ", _Symbol, "\n",
            "Forme : ", NOM_FORME[g_forme], "  sens ", g_sens, "  zA ", DoubleToString(g_zA, 2),
-           "  zB ", DoubleToString(g_zB, 2), "\n",
+           "  zB ", DoubleToString(g_zB, 2), "  align ", g_align, "\n",
            "T : angle ", DoubleToString(g_tAngle, 1), "  R2 ", DoubleToString(g_tR2, 3),
            (g_pause ? "  -> PAUSE" : "  -> actif"));
    return true;

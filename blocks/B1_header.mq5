@@ -22,6 +22,14 @@ input double InpTTol           = 0.25;    // tolerance relative sur l'angle
 input double InpTR2Min         = 0.88;    // R2 minimum de la regression
 input int    InpTATR           = 60;      // barres de l'ATR (H-L) avant le T
 
+input group "=== Alignement SMA ==="
+enum ENUM_ALIGN { ALIGN_OFF = 0, ALIGN_MEME_SENS = 1, ALIGN_NON_OPPOSE = 2 };
+input ENUM_ALIGN InpAlign      = ALIGN_MEME_SENS; // filtre (RANGE exempte)
+input int    InpSMA1           = 27;      // prix > SMA1 > SMA2 > SMA3 > SMA4 (ou inverse)
+input int    InpSMA2           = 54;
+input int    InpSMA3           = 108;
+input int    InpSMA4           = 423;
+
 input group "=== Entree ==="
 input int    InpNbConsec       = 3;       // bougies M1 contraires consecutives
 input double InpTailleMin      = 1.0;     // taille min (high-low) en $
@@ -35,10 +43,10 @@ input group "=== TP / SL ($) ==="
 input double InpTP_Tendance    = 4.0;     // TP TENDANCE / DEPART
 input double InpTP_Range       = 0.50;    // TP RANGE
 input double InpTP_Retourn     = 0.50;    // TP RETOURNEMENT
-input double InpSL             = 8.0;     // SL en $
+input double InpSL             = 0.0;     // SL en $ (0 = aucun stop)
 
 input group "=== Lot ==="
-input double InpLotFixe        = 0.0;     // lot fixe (0 = risque %)
+input double InpLotFixe        = 0.01;    // lot fixe (0 = risque %, exige un SL)
 input double InpRisquePct      = 0.5;     // risque % equity par trade
 
 input group "=== Divers ==="
@@ -57,6 +65,7 @@ double   g_c[];
 datetime g_t[];
 int      g_n = 0;
 
+int      g_align = 0;                 // +1 haut, -1 bas, 0 aucun
 int      g_forme = -1, g_sens = 0;
 double   g_zA = 0, g_zB = 0;
 

@@ -51,3 +51,22 @@ bool Glissante()
    g_zB = zB;
    return true;
 }
+
+// alignement sur la derniere cloture close : prix > SMA1 > SMA2 > SMA3 > SMA4 (+1) ou inverse (-1)
+double SMAfin(const int p)
+{
+   double s = 0.0;
+   for(int i = g_n - p; i < g_n; i++) s += g_c[i];
+   return s / p;
+}
+
+void CalculerAlignement()
+{
+   g_align = 0;
+   int pmax = MathMax(MathMax(InpSMA1, InpSMA2), MathMax(InpSMA3, InpSMA4));
+   if(g_n < pmax) return;
+   double c = g_c[g_n - 1];
+   double m1 = SMAfin(InpSMA1), m2 = SMAfin(InpSMA2), m3 = SMAfin(InpSMA3), m4 = SMAfin(InpSMA4);
+   if(c > m1 && m1 > m2 && m2 > m3 && m3 > m4) g_align = 1;
+   else if(c < m1 && m1 < m2 && m2 < m3 && m3 < m4) g_align = -1;
+}

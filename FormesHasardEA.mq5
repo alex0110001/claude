@@ -22,6 +22,14 @@ input double InpTTol           = 0.25;    // tolerance relative sur l'angle
 input double InpTR2Min         = 0.88;    // R2 minimum de la regression
 input int    InpTATR           = 60;      // barres de l'ATR (H-L) avant le T
 
+input group "=== Alignement SMA ==="
+enum ENUM_ALIGN { ALIGN_OFF = 0, ALIGN_MEME_SENS = 1, ALIGN_NON_OPPOSE = 2 };
+input ENUM_ALIGN InpAlign      = ALIGN_MEME_SENS; // filtre (RANGE exempte)
+input int    InpSMA1           = 27;      // prix > SMA1 > SMA2 > SMA3 > SMA4 (ou inverse)
+input int    InpSMA2           = 54;
+input int    InpSMA3           = 108;
+input int    InpSMA4           = 423;
+
 input group "=== Entree ==="
 input int    InpNbConsec       = 3;       // bougies M1 contraires consecutives
 input double InpTailleMin      = 1.0;     // taille min (high-low) en $
@@ -35,10 +43,10 @@ input group "=== TP / SL ($) ==="
 input double InpTP_Tendance    = 4.0;     // TP TENDANCE / DEPART
 input double InpTP_Range       = 0.50;    // TP RANGE
 input double InpTP_Retourn     = 0.50;    // TP RETOURNEMENT
-input double InpSL             = 8.0;     // SL en $
+input double InpSL             = 0.0;     // SL en $ (0 = aucun stop)
 
 input group "=== Lot ==="
-input double InpLotFixe        = 0.0;     // lot fixe (0 = risque %)
+input double InpLotFixe        = 0.01;    // lot fixe (0 = risque %, exige un SL)
 input double InpRisquePct      = 0.5;     // risque % equity par trade
 
 input group "=== Divers ==="
@@ -57,6 +65,7 @@ double   g_c[];
 datetime g_t[];
 int      g_n = 0;
 
+int      g_align = 0;                 // +1 haut, -1 bas, 0 aucun
 int      g_forme = -1, g_sens = 0;
 double   g_zA = 0, g_zB = 0;
 
@@ -161,6 +170,25 @@ bool Glissante()
    return true;
 }
 
+// alignement sur la derniere cloture close : prix > SMA1 > SMA2 > SMA3 > SMA4 (+1) ou inverse (-1)
+double SMAfin(const int p)
+{
+   double s = 0.0;
+   for(int i = g_n - p; i < g_n; i++) s += g_c[i];
+   return s / p;
+}
+
+void CalculerAlignement()
+{
+   g_align = 0;
+   int pmax = MathMax(MathMax(InpSMA1, InpSMA2), MathMax(InpSMA3, InpSMA4));
+   if(g_n < pmax) return;
+   double c = g_c[g_n - 1];
+   double m1 = SMAfin(InpSMA1), m2 = SMAfin(InpSMA2), m3 = SMAfin(InpSMA3), m4 = SMAfin(InpSMA4);
+   if(c > m1 && m1 > m2 && m2 > m3 && m3 > m4) g_align = 1;
+   else if(c < m1 && m1 < m2 && m2 < m3 && m3 < m4) g_align = -1;
+}
+
 //--- B4 : Pattern T (pause) -------------------------------------------------
 // N M1 consecutives sans minute manquante (fenetre + ATR avant), angle =
 // atan(pente regression clotures / ATR), |angle| dans cible +-tol, R2 >= min.
@@ -236,7 +264,7 @@ double CalcLot(const double slDist)
    {
       double tv   = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
       double ts   = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
-      if(tv <= 0.0 || ts <= 0.0 || slDist <= 0.0) return 0.0;
+      if(tv <= 0.0 || ts <= 0.0 || slDist <= 0.0) { Print("FormesHasardEA : lot risque impossible sans SL"); return 0.0; }
       double risque  = AccountInfoDouble(ACCOUNT_EQUITY) * InpRisquePct / 100.0;
       double perteLot = slDist / ts * tv;
       lot = risque / perteLot;
@@ -258,10 +286,10 @@ bool Poser(const bool vente, const double tpDist)
                                 SymbolInfoInteger(_Symbol, SYMBOL_TRADE_FREEZE_LEVEL)) * _Point;
    double off = MathMax(InpOffsetLimit, lvl + 2 * _Point);
    double tp  = MathMax(tpDist, lvl + _Point);
-   double sl  = MathMax(InpSL,  lvl + _Point);
+   double sl  = (InpSL > 0.0) ? MathMax(InpSL, lvl + _Point) : 0.0;   // 0 = aucun stop
 
    double prix = Nrm(vente ? bid + off : ask - off);
-   double sP   = Nrm(vente ? prix + sl : prix - sl);
+   double sP   = (sl > 0.0) ? Nrm(vente ? prix + sl : prix - sl) : 0.0;
    double tP   = Nrm(vente ? prix - tp : prix + tp);
 
    double lot = CalcLot(sl);
@@ -320,6 +348,14 @@ double TpForme()
    return InpTP_Tendance;
 }
 
+// filtre SMA : dir = sens du trade (+1 achat, -1 vente) ; RANGE exempte
+bool AlignOK(const int dir)
+{
+   if(InpAlign == ALIGN_OFF || g_forme == 4) return true;
+   if(InpAlign == ALIGN_MEME_SENS) return (g_align == dir);
+   return (g_align != -dir);
+}
+
 // tendance baissiere (ou range) + N haussieres -> SELL LIMIT
 // tendance haussiere (ou range) + N baissieres -> BUY LIMIT
 void Entree(const datetime b)
@@ -330,8 +366,8 @@ void Entree(const datetime b)
    if(sec < 60 - InpSecAvantFin || sec >= 60) return;
    if(Exposition() >= InpMaxPositions) return;
 
-   bool vente = (g_forme == 4 || g_sens < 0) && Sequence(true);
-   bool achat = (g_forme == 4 || g_sens > 0) && Sequence(false);
+   bool vente = (g_forme == 4 || g_sens < 0) && AlignOK(-1) && Sequence(true);
+   bool achat = (g_forme == 4 || g_sens > 0) && AlignOK(+1) && Sequence(false);
    if(!vente && !achat) return;
 
    g_lastOrderBar = b;                             // un seul essai par barre
@@ -345,10 +381,11 @@ bool Rafraichir()
    g_forme = -1;
    if(!Charger()) return false;
    if(!Glissante()) return false;
+   CalculerAlignement();
    g_pause = InpPauseT && DetecterT();
    Comment("FormesHasardEA ", _Symbol, "\n",
            "Forme : ", NOM_FORME[g_forme], "  sens ", g_sens, "  zA ", DoubleToString(g_zA, 2),
-           "  zB ", DoubleToString(g_zB, 2), "\n",
+           "  zB ", DoubleToString(g_zB, 2), "  align ", g_align, "\n",
            "T : angle ", DoubleToString(g_tAngle, 1), "  R2 ", DoubleToString(g_tR2, 3),
            (g_pause ? "  -> PAUSE" : "  -> actif"));
    return true;

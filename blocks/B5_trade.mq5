@@ -37,7 +37,7 @@ double CalcLot(const double slDist)
    {
       double tv   = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_VALUE);
       double ts   = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
-      if(tv <= 0.0 || ts <= 0.0 || slDist <= 0.0) return 0.0;
+      if(tv <= 0.0 || ts <= 0.0 || slDist <= 0.0) { Print("FormesHasardEA : lot risque impossible sans SL"); return 0.0; }
       double risque  = AccountInfoDouble(ACCOUNT_EQUITY) * InpRisquePct / 100.0;
       double perteLot = slDist / ts * tv;
       lot = risque / perteLot;
@@ -59,10 +59,10 @@ bool Poser(const bool vente, const double tpDist)
                                 SymbolInfoInteger(_Symbol, SYMBOL_TRADE_FREEZE_LEVEL)) * _Point;
    double off = MathMax(InpOffsetLimit, lvl + 2 * _Point);
    double tp  = MathMax(tpDist, lvl + _Point);
-   double sl  = MathMax(InpSL,  lvl + _Point);
+   double sl  = (InpSL > 0.0) ? MathMax(InpSL, lvl + _Point) : 0.0;   // 0 = aucun stop
 
    double prix = Nrm(vente ? bid + off : ask - off);
-   double sP   = Nrm(vente ? prix + sl : prix - sl);
+   double sP   = (sl > 0.0) ? Nrm(vente ? prix + sl : prix - sl) : 0.0;
    double tP   = Nrm(vente ? prix - tp : prix + tp);
 
    double lot = CalcLot(sl);

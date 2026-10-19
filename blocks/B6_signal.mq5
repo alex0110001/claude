@@ -25,6 +25,14 @@ double TpForme()
    return InpTP_Tendance;
 }
 
+// filtre SMA : dir = sens du trade (+1 achat, -1 vente) ; RANGE exempte
+bool AlignOK(const int dir)
+{
+   if(InpAlign == ALIGN_OFF || g_forme == 4) return true;
+   if(InpAlign == ALIGN_MEME_SENS) return (g_align == dir);
+   return (g_align != -dir);
+}
+
 // tendance baissiere (ou range) + N haussieres -> SELL LIMIT
 // tendance haussiere (ou range) + N baissieres -> BUY LIMIT
 void Entree(const datetime b)
@@ -35,8 +43,8 @@ void Entree(const datetime b)
    if(sec < 60 - InpSecAvantFin || sec >= 60) return;
    if(Exposition() >= InpMaxPositions) return;
 
-   bool vente = (g_forme == 4 || g_sens < 0) && Sequence(true);
-   bool achat = (g_forme == 4 || g_sens > 0) && Sequence(false);
+   bool vente = (g_forme == 4 || g_sens < 0) && AlignOK(-1) && Sequence(true);
+   bool achat = (g_forme == 4 || g_sens > 0) && AlignOK(+1) && Sequence(false);
    if(!vente && !achat) return;
 
    g_lastOrderBar = b;                             // un seul essai par barre
