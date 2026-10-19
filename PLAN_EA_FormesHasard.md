@@ -27,3 +27,13 @@ Fichier cible : FormesHasardEA.mq5 — XAUUSD M1, barres closes seulement.
 - B7 : gestion position (sortie, trailing option)
 - B8 : OnInit/OnTick(new bar)/OnDeinit
 - Assemblage final en un fichier, sans réécrire les blocs.
+
+## Révision 2 : Pattern T + règles d'entrée (remplace "Règles EA proposées")
+Pattern T (pattern_T.html) : 17 M1 consécutives, angle = atan(pente régression clôtures / ATR60), cible ±23.5° (±25 % : 17.6°–29.4°), R² ≥ 0.88, ATR60 = moy(H-L) des 60 M1 avant. Hausses et baisses (miroir).
+- PAUSE : T détecté sur la fenêtre close → aucune entrée, ordres limites en attente annulés, jusqu'à la fin du T (fenêtre ne répond plus aux critères).
+- Entrée (si pas de pause, forme glissante TENDANCE/RETOURNEMENT/RANGE) : séquence de N bougies M1 consécutives contre le sens (InpNbConsec, déf. 3), chacune de corps/taille > InpTailleMin (1.0 $), la dernière dans le sens inverse de la tendance.
+  Ex. trend down : bougies haussières consécutives ≥ N, taille > 1 $ → ordre BUY LIMIT.
+- Ordre toujours LIMIT (prix de la limite : clôture de la dernière bougie de la séquence, input d'offset), expiration 1–2 barres.
+- TP : RANGE et RETOURNEMENT = 0.50 $ ; TENDANCE = 4.00 $ (inputs).
+- InpMaxPositions (1 = une seule, >1 = multi). SL ATR (input), magic, anti-burst new-bar.
+- Hypothèses à confirmer : "taille" = high-low ; sens de la limite = dans le sens de la tendance (retour de tendance après contre-bougies) ; pause = blocage des entrées pendant T.
